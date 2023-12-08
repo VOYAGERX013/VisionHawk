@@ -76,4 +76,5 @@ void loop(){
   Array[1] = temperature;
   Array[2] = pressure;
   radio.write(&Array, 3 * sizeof(float));
+  delay(100);
 }
