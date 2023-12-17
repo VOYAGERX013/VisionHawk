@@ -16,6 +16,9 @@ float initialAltitude;
 char userInput;
 int sensorValue;
 float RateRoll, RatePitch, RateYaw;
+float RateCalibrationRoll, RateCalibrationPitch, RateCalibrationYaw;
+int RateCalibrationNumber;
+
 float altitude, temperature, pressure;
 float Array[3];
 
@@ -42,7 +45,7 @@ void gyro_signals(void) {
 
 void setup() {
   while ( !Serial ) delay(100);   // wait for native usb
-
+  Serial.begin(9600);
   // Barometer
   unsigned status;
   status = bmp.begin(BMP280_ADDRESS);
@@ -54,13 +57,25 @@ void setup() {
   
   initialAltitude = bmp.readAltitude(1013.25);
   // Orientation sensor
-  // Wire.setClock(400000);
-  // Wire.begin();
-  // delay(250);
-  // Wire.beginTransmission(0x68); 
-  // Wire.write(0x6B);
-  // Wire.write(0x00);
-  // Wire.endTransmission();
+  Wire.setClock(400000);
+  Wire.begin();
+  delay(250);
+  Wire.beginTransmission(0x68); 
+  Wire.write(0x6B);
+  Wire.write(0x00);
+  Wire.endTransmission();
+
+  for (RateCalibrationNumber=0; RateCalibrationNumber<2000; RateCalibrationNumber++){
+    gyro_signals();
+    RateCalibrationRoll += RateRoll;
+    RateCalibrationPitch += RatePitch;
+    RateCalibrationYaw += RateYaw;
+    delay(1);
+  }
+
+  RateCalibrationRoll/=2000;
+  RateCalibrationPitch/=2000;
+  RateCalibrationYaw/=2000;
 
   radio.begin();
   radio.openWritingPipe(address);
@@ -69,12 +84,22 @@ void setup() {
 }
 
 void loop(){
-  altitude = bmp.readAltitude(1013.25) - initialAltitude;
-  temperature = bmp.readTemperature();
-  pressure = bmp.readPressure() / 1000.0f;
-  Array[0] = altitude;
-  Array[1] = temperature;
-  Array[2] = pressure;
+  // altitude = bmp.readAltitude(1013.25) - initialAltitude;
+  // temperature = bmp.readTemperature();
+  // pressure = bmp.readPressure() / 1000.0f;
+  // Array[0] = altitude;
+  // Array[1] = temperature;
+  // Array[2] = pressure;
+  // radio.write(&Array, 3 * sizeof(float));
+  gyro_signals();
+  RateRoll-=RateCalibrationRoll;
+  RatePitch-=RateCalibrationPitch;
+  RateYaw-=RateCalibrationYaw;
+  Array[0] = RateRoll;
+  Array[1] = RatePitch;
+  Array[2] = RateYaw;
+
   radio.write(&Array, 3 * sizeof(float));
+
   delay(100);
 }
